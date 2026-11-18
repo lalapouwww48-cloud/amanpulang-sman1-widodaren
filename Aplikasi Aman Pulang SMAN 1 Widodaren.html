@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AmanPulang - SMA N 1 Widodaren</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet OpenStreetMap CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        #map { height: 320px; width: 100%; border-radius: 1rem; z-index: 1; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .pulse-emerald { animation: pulseEmerald 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulseEmerald { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- HEADER / NAVBAR -->
+    <header class="bg-emerald-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-white text-emerald-700 p-2 rounded-xl shadow font-bold text-xl">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg leading-tight">AmanPulang</h1>
+                    <p class="text-xs text-emerald-200">SMA N 1 Widodaren, Ngawi</p>
+                </div>
+            </div>
+            
+            <div id="userBadge" class="hidden flex items-center gap-2 bg-emerald-800/80 px-3 py-1.5 rounded-full text-xs">
+                <span id="badgeRole" class="font-semibold text-emerald-200"></span>
+                <span id="badgeName" class="font-bold text-white max-w-[120px] truncate"></span>
+                <button onclick="logout()" class="ml-1 text-rose-300 hover:text-white transition" title="Keluar">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-5xl mx-auto w-full px-4 py-6 flex-grow">
+
+        <!-- SELECTION MODAL / LOGIN CONTAINER -->
+        <div id="authSection" class="max-w-md mx-auto my-4">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <div class="bg-emerald-600 p-6 text-white text-center">
+                    <div class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                        <i class="fa-solid fa-school-flag"></i>
+                    </div>
+                    <h2 class="text-xl font-bold">Masuk ke AmanPulang</h2>
+                    <p class="text-xs text-emerald-100 mt-1">Sistem Pemantauan Kepulangan Siswa SMAN 1 Widodaren</p>
+                </div>
+
+                <!-- ROLE SWITCHER TABS -->
+                <div class="flex border-b border-slate-200 bg-slate-50 text-sm font-semibold text-slate-600">
+                    <button onclick="switchTab('siswa')" id="tabSiswa" class="flex-1 py-3 text-center border-b-2 border-emerald-600 text-emerald-700 bg-white">
+                        <i class="fa-solid fa-user-graduate mr-1"></i> Siswa
+                    </button>
+                    <button onclick="switchTab('ortu')" id="tabOrtu" class="flex-1 py-3 text-center border-b-2 border-transparent hover:text-emerald-600">
+                        <i class="fa-solid fa-people-roof mr-1"></i> Orang Tua
+                    </button>
+                    <button onclick="switchTab('guru')" id="tabGuru" class="flex-1 py-3 text-center border-b-2 border-transparent hover:text-emerald-600">
+                        <i class="fa-solid fa-chalkboard-user mr-1"></i> Wali Kelas
+                    </button>
+                </div>
+
+                <!-- FORM SISWA -->
+                <form id="formSiswa" onsubmit="handleLoginSiswa(event)" class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Lengkap Siswa</label>
+                        <input type="text" id="sNama" required placeholder="Contoh: Nur Laila" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Kelas</label>
+                            <select id="sKelas" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none bg-white">
+                                <option value="XI-C">XI-C</option>
+                                <option value="XI-A">XI-A</option>
+                                <option value="XI-B">XI-B</option>
+                                <option value="XI-D">XI-D</option>
+                                <option value="XI-E">XI-E</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. Absen</label>
+                            <input type="number" id="sAbsen" required placeholder="15" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Alamat Rumah</label>
+                        <input type="text" id="sAlamat" required placeholder="Jl. Raya Walikukun, Widodaren" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. HP / WhatsApp</label>
+                        <input type="tel" id="sHp" required placeholder="081234567890" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                        <span>Masuk sebagai Siswa</span> <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </form>
+
+                <!-- FORM ORANG TUA -->
+                <form id="formOrtu" onsubmit="handleLoginOrtu(event)" class="p-6 space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Orang Tua / Wali</label>
+                        <input type="text" id="oNama" required placeholder="Contoh: Bpk. Suparno" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Anak (Siswa)</label>
+                        <input type="text" id="oNamaAnak" required placeholder="Nama lengkap anak di SMAN 1 Widodaren" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. HP / WhatsApp Orang Tua</label>
+                        <input type="tel" id="oHp" required placeholder="081298765432" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                        <span>Pantau Kepulangan Anak</span> <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </form>
+
+                <!-- FORM GURU -->
+                <form id="formGuru" onsubmit="handleLoginGuru(event)" class="p-6 space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Guru / Wali Kelas</label>
+                        <input type="text" id="gNama" required placeholder="Drs. Budi Santoso" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Kelas Binaan</label>
+                            <select id="gKelas" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none bg-white">
+                                <option value="XI-C">XI-C</option>
+                                <option value="XI-A">XI-A</option>
+                                <option value="XI-B">XI-B</option>
+                                <option value="XI-D">XI-D</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">NIP / ID Guru</label>
+                            <input type="text" id="gNip" required placeholder="198501..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 text-sm outline-none">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                        <span>Buka Dashboard Wali Kelas</span> <i class="fa-solid fa-chalkboard"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- DASHBOARD CONTAINER (HIDDEN UNTIL LOGIN) -->
+        <div id="dashboardSection" class="hidden space-y-6">
+
+            <!-- DASHBOARD SISWA -->
+            <div id="dashSiswa" class="hidden space-y-6">
+                <!-- Profile & Status Card -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <div class="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold mb-2">
+                            Akses Siswa
+                        </div>
+                        <h2 id="siswaDisplayNama" class="text-2xl font-extrabold text-slate-800">---</h2>
+                        <p class="text-sm text-slate-500 mt-0.5">Kelas: <span id="siswaDisplayKelas" class="font-semibold text-slate-700">--</span> | No. Absen: <span id="siswaDisplayAbsen" class="font-semibold text-slate-700">--</span></p>
+                        <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i> <span id="siswaDisplayAlamat">--</span></p>
+                    </div>
+
+                    <div class="text-center md:text-right bg-slate-50 p-4 rounded-xl border border-slate-200 w-full md:w-auto">
+                        <span class="text-xs text-slate-500 font-semibold block uppercase">Status Kepulangan Anda</span>
+                        <div id="siswaStatusBadge" class="mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm bg-amber-100 text-amber-800">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 pulse-emerald"></span>
+                            <span id="siswaStatusText">Di Sekolah</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Map Section -->
+                <div class="bg-white p-4 rounded-2xl shadow-md border border-slate-200">
+                    <h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-emerald-600"></i> Peta Rute Kepulangan (SMA N 1 Widodaren)
+                    </h3>
+                    <div id="map"></div>
+                </div>
+
+                <!-- Action Button Check-in -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h3 class="font-bold text-slate-800 mb-4">Pembaruan Status Kepulangan</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button onclick="updateSiswaStatus('Di Sekolah')" class="py-3 px-4 rounded-xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50 font-bold text-slate-700 text-sm flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-school text-amber-500"></i> Di Sekolah
+                        </button>
+                        <button onclick="updateSiswaStatus('Dalam Perjalanan')" class="py-3 px-4 rounded-xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50 font-bold text-slate-700 text-sm flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-person-walking-luggage text-blue-500"></i> Dalam Perjalanan
+                        </button>
+                        <button onclick="updateSiswaStatus('Sampai Rumah')" class="py-3 px-4 rounded-xl border-2 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 font-bold text-slate-700 text-sm flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-house-chimney text-emerald-500"></i> Sampai Rumah
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD ORANG TUA -->
+            <div id="dashOrtu" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <div class="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold mb-2">
+                                Dashboard Orang Tua
+                            </div>
+                            <h2 class="text-xl font-bold text-slate-800">Selamat Datang, <span id="ortuDisplayNama">--</span></h2>
+                            <p class="text-sm text-slate-500">Memantau Kepulangan: <span id="ortuTargetAnak" class="font-bold text-emerald-700">--</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Live Monitoring Card for Child -->
+                    <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl p-6 shadow-lg">
+                        <div class="flex justify-between items-center pb-4 border-b border-slate-700">
+                            <div>
+                                <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Status Real-Time Anak</span>
+                                <div id="ortuChildStatusBadge" class="mt-1 flex items-center gap-2 font-bold text-lg text-emerald-400">
+                                    <i class="fa-solid fa-circle text-xs pulse-emerald"></i>
+                                    <span id="ortuChildStatusText">Mencari data...</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Lokasi Sekolah</span>
+                                <p class="text-xs font-semibold text-slate-200 mt-1">SMA N 1 Widodaren</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
+                                <span class="text-xs text-slate-400 block">Waktu Terakhir Disatukan</span>
+                                <span id="ortuLastUpdate" class="font-bold text-white text-sm">--:-- WIB</span>
+                            </div>
+                            <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
+                                <span class="text-xs text-slate-400 block">Hubungi Anak / WA</span>
+                                <a id="btnWaAnak" href="#" target="_blank" class="inline-flex items-center gap-1 text-emerald-400 font-bold text-xs mt-1 hover:underline">
+                                    <i class="fa-brands fa-whatsapp text-sm"></i> Chat Whatsapp
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Section -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h3 class="font-bold text-slate-800 mb-2">Beri Feedback Kepada Sekolah</h3>
+                    <p class="text-xs text-slate-500 mb-4">Sampaikan masukan atau tanggapan terkait sistem keselamatan dan jam kepulangan anak ke pihak SMAN 1 Widodaren.</p>
+                    <textarea id="feedbackText" rows="3" placeholder="Tuliskan saran atau pertanyaan Anda..." class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 mb-3"></textarea>
+                    <button onclick="sendFeedback()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition">
+                        <i class="fa-solid fa-paper-plane mr-1"></i> Kirim Feedback
+                    </button>
+                </div>
+            </div>
+
+            <!-- DASHBOARD GURU / WALI KELAS -->
+            <div id="dashGuru" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 flex justify-between items-center">
+                    <div>
+                        <div class="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold mb-2">
+                            Wali Kelas Dashboard
+                        </div>
+                        <h2 class="text-xl font-bold text-slate-800"><span id="guruDisplayNama">--</span></h2>
+                        <p class="text-sm text-slate-500">Wali Kelas: <span id="guruDisplayKelas" class="font-bold text-emerald-700">--</span></p>
+                    </div>
+                    <button onclick="renderGuruTable()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">
+                        <i class="fa-solid fa-rotate mr-1"></i> Refresh Data
+                    </button>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-center">
+                        <span class="text-xs font-bold text-amber-700 uppercase block">Di Sekolah</span>
+                        <span id="countDiSekolah" class="text-2xl font-extrabold text-amber-800">0</span>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-center">
+                        <span class="text-xs font-bold text-blue-700 uppercase block">Perjalanan</span>
+                        <span id="countPerjalanan" class="text-2xl font-extrabold text-blue-800">0</span>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
+                        <span class="text-xs font-bold text-emerald-700 uppercase block">Sampai Rumah</span>
+                        <span id="countSampai" class="text-2xl font-extrabold text-emerald-800">0</span>
+                    </div>
+                </div>
+
+                <!-- Table Monitoring Siswa -->
+                <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 text-sm">Daftar Status Kepulangan Siswa</h3>
+                        <span class="text-xs text-slate-500">Terhubung Real-Time</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-100 text-slate-600 text-xs uppercase font-bold">
+                                <tr>
+                                    <th class="p-3">Absen</th>
+                                    <th class="p-3">Nama Siswa</th>
+                                    <th class="p-3">Alamat</th>
+                                    <th class="p-3">Status Kepulangan</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="guruTableBody" class="divide-y divide-slate-100">
+                                <!-- Dynamic Render -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-xs mt-8">
+        <div class="max-w-5xl mx-auto px-4">
+            <p class="font-bold text-slate-300">AmanPulang &copy; 2026 - SMA Negeri 1 Widodaren Ngawi</p>
+            <p class="mt-1 text-slate-500">Dikembangkan untuk Sistem Integrasi Keamanan Siswa & Keselamatan Kepulangan Sekolah.</p>
+        </div>
+    </footer>
+
+    <!-- Leaflet OpenStreetMap JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Shared Database State Simulation
+        let activeRole = null;
+        let activeUserData = null;
+        let mapInstance = null;
+
+        // Default Data Siswa SMAN 1 Widodaren
+        let studentsData = [
+            { id: 1, nama: "Nur Laila Agustina", kelas: "XI-C", absen: "15", alamat: "Jl. Raya Walikukun, Widodaren", hp: "081234567890", status: "Di Sekolah", time: "14:00" },
+            { id: 2, nama: "Ahmad Rizky", kelas: "XI-C", absen: "02", alamat: "Kedunggalar, Ngawi", hp: "081298765431", status: "Dalam Perjalanan", time: "14:15" },
+            { id: 3, nama: "Budi Santoso", kelas: "XI-C", absen: "05", alamat: "Gayam, Widodaren", hp: "081233445566", status: "Sampai Rumah", time: "14:30" },
+            { id: 4, nama: "Citra Dewi", kelas: "XI-C", absen: "08", alamat: "Walikukun Barat, Widodaren", hp: "081277889900", status: "Di Sekolah", time: "14:00" }
+        ];
+
+        // Switch Login Tabs
+        function switchTab(role) {
+            ['Siswa', 'Ortu', 'Guru'].forEach(r => {
+                const tab = document.getElementById('tab' + r);
+                const form = document.getElementById('form' + r);
+                if (r.toLowerCase() === role) {
+                    tab.className = "flex-1 py-3 text-center border-b-2 border-emerald-600 text-emerald-700 bg-white font-bold";
+                    form.classList.remove('hidden');
+                } else {
+                    tab.className = "flex-1 py-3 text-center border-b-2 border-transparent hover:text-emerald-600 font-semibold";
+                    form.classList.add('hidden');
+                }
+            });
+        }
+
+        // Login Handlers
+        function handleLoginSiswa(e) {
+            e.preventDefault();
+            const nama = document.getElementById('sNama').value;
+            const kelas = document.getElementById('sKelas').value;
+            const absen = document.getElementById('sAbsen').value;
+            const alamat = document.getElementById('sAlamat').value;
+            const hp = document.getElementById('sHp').value;
+
+            // Check if exists or push
+            let student = studentsData.find(s => s.nama.toLowerCase() === nama.toLowerCase());
+            if (!student) {
+                student = { id: Date.now(), nama, kelas, absen, alamat, hp, status: "Di Sekolah", time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) };
+                studentsData.push(student);
+            }
+
+            activeRole = 'siswa';
+            activeUserData = student;
+            initDashboard();
+        }
+
+        function handleLoginOrtu(e) {
+            e.preventDefault();
+            const namaOrtu = document.getElementById('oNama').value;
+            const namaAnak = document.getElementById('oNamaAnak').value;
+
+            activeRole = 'ortu';
+            activeUserData = { nama: namaOrtu, anak: namaAnak };
+            initDashboard();
+        }
+
+        function handleLoginGuru(e) {
+            e.preventDefault();
+            const nama = document.getElementById('gNama').value;
+            const kelas = document.getElementById('gKelas').value;
+
+            activeRole = 'guru';
+            activeUserData = { nama, kelas };
+            initDashboard();
+        }
+
+        function logout() {
+            activeRole = null;
+            activeUserData = null;
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('userBadge').classList.add('hidden');
+        }
+
+        function initDashboard() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('userBadge').classList.remove('hidden');
+
+            document.getElementById('dashSiswa').classList.add('hidden');
+            document.getElementById('dashOrtu').classList.add('hidden');
+            document.getElementById('dashGuru').classList.add('hidden');
+
+            document.getElementById('badgeRole').innerText = activeRole.toUpperCase();
+            document.getElementById('badgeName').innerText = activeUserData.nama;
+
+            if (activeRole === 'siswa') {
+                document.getElementById('dashSiswa').classList.remove('hidden');
+                document.getElementById('siswaDisplayNama').innerText = activeUserData.nama;
+                document.getElementById('siswaDisplayKelas').innerText = activeUserData.kelas;
+                document.getElementById('siswaDisplayAbsen').innerText = activeUserData.absen;
+                document.getElementById('siswaDisplayAlamat').innerText = activeUserData.alamat;
+                renderSiswaBadge();
+                initMap();
+            } else if (activeRole === 'ortu') {
+                document.getElementById('dashOrtu').classList.remove('hidden');
+                document.getElementById('ortuDisplayNama').innerText = activeUserData.nama;
+                document.getElementById('ortuTargetAnak').innerText = activeUserData.anak;
+                renderOrtuMonitoring();
+            } else if (activeRole === 'guru') {
+                document.getElementById('dashGuru').classList.remove('hidden');
+                document.getElementById('guruDisplayNama').innerText = activeUserData.nama;
+                document.getElementById('guruDisplayKelas').innerText = activeUserData.kelas;
+                renderGuruTable();
+            }
+        }
+
+        // Siswa Actions
+        function updateSiswaStatus(newStatus) {
+            activeUserData.status = newStatus;
+            activeUserData.time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            renderSiswaBadge();
+            alert("Status berhasil diperbarui menjadi: " + newStatus);
+        }
+
+        function renderSiswaBadge() {
+            const badge = document.getElementById('siswaStatusBadge');
+            const txt = document.getElementById('siswaStatusText');
+            txt.innerText = activeUserData.status;
+
+            if (activeUserData.status === 'Di Sekolah') {
+                badge.className = "mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm bg-amber-100 text-amber-800";
+            } else if (activeUserData.status === 'Dalam Perjalanan') {
+                badge.className = "mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm bg-blue-100 text-blue-800";
+            } else {
+                badge.className = "mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm bg-emerald-100 text-emerald-800";
+            }
+        }
+
+        // Ortu Actions
+        function renderOrtuMonitoring() {
+            const child = studentsData.find(s => s.nama.toLowerCase().includes(activeUserData.anak.toLowerCase())) || {
+                status: "Tidak Ditemukan",
+                time: "--:--",
+                hp: "081234567890"
+            };
+
+            document.getElementById('ortuChildStatusText').innerText = child.status;
+            document.getElementById('ortuLastUpdate').innerText = child.time + " WIB";
+            document.getElementById('btnWaAnak').href = "https://wa.me/" + child.hp;
+        }
+
+        function sendFeedback() {
+            const val = document.getElementById('feedbackText').value;
+            if (!val) return alert("Silakan isi feedback terlebih dahulu!");
+            alert("Feedback Anda telah dikirimkan ke pihak SMA N 1 Widodaren. Terima kasih!");
+            document.getElementById('feedbackText').value = "";
+        }
+
+        // Guru Actions
+        function renderGuruTable() {
+            const tbody = document.getElementById('guruTableBody');
+            tbody.innerHTML = "";
+
+            let filtered = studentsData.filter(s => s.kelas === activeUserData.kelas);
+            if (filtered.length === 0) filtered = studentsData;
+
+            let cSekolah = 0, cJalan = 0, cSampai = 0;
+
+            filtered.forEach(s => {
+                if (s.status === 'Di Sekolah') cSekolah++;
+                if (s.status === 'Dalam Perjalanan') cJalan++;
+                if (s.status === 'Sampai Rumah') cSampai++;
+
+                let badgeColor = s.status === 'Di Sekolah' ? 'bg-amber-100 text-amber-800' :
+                                 s.status === 'Dalam Perjalanan' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-slate-500">${s.absen}</td>
+                    <td class="p-3 font-bold text-slate-800">${s.nama}</td>
+                    <td class="p-3 text-slate-500 text-xs">${s.alamat}</td>
+                    <td class="p-3">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeColor}">${s.status} (${s.time})</span>
+                    </td>
+                    <td class="p-3 text-center">
+                        <a href="https://wa.me/${s.hp}" target="_blank" class="text-emerald-600 hover:text-emerald-800 font-bold text-xs">
+                            <i class="fa-brands fa-whatsapp text-base"></i> Hubungi
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('countDiSekolah').innerText = cSekolah;
+            document.getElementById('countPerjalanan').innerText = cJalan;
+            document.getElementById('countSampai').innerText = cSampai;
+        }
+
+        // Leaflet Map Init (SMA N 1 Widodaren: -7.3820, 111.1980)
+        function initMap() {
+            setTimeout(() => {
+                if (mapInstance) mapInstance.remove();
+                
+                // Coordinates for Widodaren, Ngawi
+                const widodarenLat = -7.3820;
+                const widodarenLng = 111.1980;
+
+                mapInstance = L.map('map').setView([widodarenLat, widodarenLng], 14);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(mapInstance);
+
+                // School Marker
+                L.marker([widodarenLat, widodarenLng]).addTo(mapInstance)
+                    .bindPopup('<b>SMA N 1 Widodaren</b><br>Titik Keberangkatan')
+                    .openPopup();
+
+                // Home Area Marker Example (Walikukun)
+                L.marker([widodarenLat - 0.012, widodarenLng + 0.015]).addTo(mapInstance)
+                    .bindPopup('<b>Area Walikukun / Rumah Siswa</b>');
+            }, 200);
+        }
+    </script>
+</body>
+</html>
